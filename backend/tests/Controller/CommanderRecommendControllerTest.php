@@ -97,6 +97,91 @@ final class CommanderRecommendControllerTest extends WebTestCase
         self::assertContains('proliferate', $buddy['reasons']);
         self::assertSame(3, $buddy['inventoryItem']['quantity']);
         self::assertArrayHasKey('id', $buddy['inventoryItem'], 'inventory id is required for cart PUT');
+        self::assertArrayHasKey('role', $buddy);
+        self::assertArrayHasKey('cardType', $buddy);
+        self::assertSame('creature', $buddy['cardType']);
+        self::assertNotEmpty($payload['strategies']);
+        self::assertSame('proliferate', $payload['strategy']['id']);
+        self::assertArrayHasKey('byRole', $payload);
+        self::assertArrayHasKey('byType', $payload);
+        self::assertArrayHasKey('fuel', $payload['byRole']);
+        self::assertNotEmpty($payload['byType']['creature']);
+    }
+
+    public function testStrategiesEndpointAndStrategyFilter(): void
+    {
+        $store = $this->fixtures->store('strategy-store');
+        $commander = $this->fixtures->card(730, [
+            'name' => 'Strategy Commander',
+            'type_line' => 'Legendary Creature — Phyrexian',
+            'oracle_text' => 'At the beginning of your end step, proliferate.',
+            'keywords' => ['Proliferate'],
+            'color_identity' => ['U', 'G'],
+            'legalities' => ['commander' => 'legal'],
+        ]);
+        $enabler = $this->fixtures->card(731, [
+            'name' => 'Counter Placer',
+            'type_line' => 'Creature — Phyrexian',
+            'oracle_text' => 'When Counter Placer enters, put a +1/+1 counter on target creature.',
+            'color_identity' => ['G'],
+            'legalities' => ['commander' => 'legal'],
+        ]);
+        $fuel = $this->fixtures->card(732, [
+            'name' => 'More Proliferate',
+            'type_line' => 'Enchantment',
+            'oracle_text' => 'Whenever you cast a noncreature spell, proliferate.',
+            'keywords' => ['Proliferate'],
+            'color_identity' => ['U'],
+            'legalities' => ['commander' => 'legal'],
+        ]);
+        $land = $this->fixtures->card(733, [
+            'name' => 'Strategy Land',
+            'type_line' => 'Land',
+            'oracle_text' => '{T}: Add {U}.',
+            'color_identity' => ['U'],
+            'legalities' => ['commander' => 'legal'],
+        ]);
+        $this->fixtures->inventoryItem($store, $enabler, quantity: 2, priceCents: 300);
+        $this->fixtures->inventoryItem($store, $fuel, quantity: 2, priceCents: 400);
+        $this->fixtures->inventoryItem($store, $land, quantity: 4, priceCents: 50);
+        $this->em->flush();
+
+        $this->client->request('GET', sprintf(
+            '/api/stores/%s/recommend/commander/%s/strategies',
+            $store->getSlug(),
+            $commander->getId(),
+        ));
+        self::assertSame(200, $this->client->getResponse()->getStatusCode());
+        $strategies = json_decode($this->client->getResponse()->getContent(), true)['strategies'];
+        $ids = array_column($strategies, 'id');
+        self::assertContains('proliferate', $ids);
+
+        $this->client->request('GET', sprintf(
+            '/api/stores/%s/recommend/commander/%s?strategy=proliferate',
+            $store->getSlug(),
+            $commander->getId(),
+        ));
+        self::assertSame(200, $this->client->getResponse()->getStatusCode());
+        $payload = json_decode($this->client->getResponse()->getContent(), true);
+        self::assertSame('proliferate', $payload['strategy']['id']);
+        self::assertNotEmpty($payload['byRole']['enabler'], 'counter placers / engines are enablers');
+        self::assertNotEmpty($payload['byType']['enchantment']);
+        self::assertNotEmpty($payload['byType']['creature']);
+        self::assertNotEmpty($payload['byType']['land']);
+        $namesByRole = [];
+        foreach ($payload['recommendations'] as $row) {
+            $namesByRole[$row['role']][] = $row['inventoryItem']['card']['name'];
+        }
+        self::assertContains('Counter Placer', $namesByRole['enabler'] ?? []);
+        // Permanent proliferate (enchantment) is an engine/enabler, not spell fuel.
+        self::assertContains('More Proliferate', $namesByRole['enabler'] ?? []);
+
+        $this->client->request('GET', sprintf(
+            '/api/stores/%s/recommend/commander/%s?strategy=not-a-real-strategy',
+            $store->getSlug(),
+            $commander->getId(),
+        ));
+        self::assertSame(422, $this->client->getResponse()->getStatusCode());
     }
 
     public function testCommanderSearchUsesCommandersCatalogNotInventory(): void

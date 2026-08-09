@@ -22,14 +22,19 @@ export {
 export { useCart } from './useCart'
 export {
   useCommanderSearch,
+  useCommanderStrategies,
   useCommanderRecommendations,
   commanderSearchKey,
+  commanderStrategiesKey,
   commanderRecommendKey,
 } from './useCommanderRecommend'
 export type {
   CommanderSummary,
+  CommanderStrategy,
   CommanderRecommendation,
   CommanderRecommendResponse,
+  DeckRole,
+  DeckCardType,
 } from './useCommanderRecommend'
 export {
   useCatalogGames,
