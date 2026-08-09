@@ -27,3 +27,4 @@ framework:
             App\Message\ProcessCsvImportMessage: async
             App\Message\SyncScryfallCatalogMessage: async
             App\Message\SyncGameCatalogMessage: async
+            App\Message\SyncCommanderCatalogMessage: async

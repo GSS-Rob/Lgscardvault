@@ -248,6 +248,61 @@ class ScryfallClient
     }
 
     /**
+     * Paginate a Scryfall search end-to-end, yielding raw card payloads.
+     *
+     * Used by the weekly commander catalog sync (`is:commander`) so the full
+     * legal-commander list lands locally without per-keystroke API calls.
+     * Callers should upsert each page themselves (and respect rate limits —
+     * this method already waits between pages via requestWithRateLimit).
+     *
+     * @return \Generator<int, list<array<string, mixed>>>
+     */
+    public function iterateSearchPages(string $query, string $unique = 'cards'): \Generator
+    {
+        $url = self::SEARCH_URL;
+        $options = [
+            'headers' => self::DEFAULT_HEADERS,
+            'query' => ['q' => $query, 'unique' => $unique],
+        ];
+
+        while (true) {
+            $response = $this->requestWithRateLimit('GET', $url, $options);
+            $status = $response->getStatusCode();
+            if (404 === $status) {
+                return;
+            }
+            if ($status < 200 || $status >= 300) {
+                throw new \RuntimeException(sprintf('Scryfall search request failed with status %d.', $status));
+            }
+
+            $payload = $response->toArray(false);
+            $data = $payload['data'] ?? null;
+            if (!is_array($data) || [] === $data) {
+                return;
+            }
+
+            $batch = [];
+            foreach ($data as $cardData) {
+                if (is_array($cardData) && isset($cardData['id'], $cardData['oracle_id'])) {
+                    $batch[] = $cardData;
+                }
+            }
+
+            if ([] !== $batch) {
+                yield $batch;
+            }
+
+            if (empty($payload['has_more']) || empty($payload['next_page']) || !is_string($payload['next_page'])) {
+                return;
+            }
+
+            // next_page is a fully-qualified URL — do not re-apply query params.
+            $url = $payload['next_page'];
+            $options = ['headers' => self::DEFAULT_HEADERS];
+        }
+    }
+
+    /**
      * @param list<array{set: string, collectorNumber: string}> $identifiers
      *
      * @return array<string, Card> keyed by "set|collectorNumber" (see collectionKey())
@@ -374,19 +429,28 @@ class ScryfallClient
     /** @param array<string, mixed> $options */
     private function requestWithRateLimit(string $method, string $url, array $options): \Symfony\Contracts\HttpClient\ResponseInterface
     {
-        $this->rateLimiter->acquire();
-        $response = $this->httpClient->request($method, $url, $options);
+        $attempt = 0;
+        $maxAttempts = 6;
 
-        if (429 !== $response->getStatusCode()) {
-            return $response;
+        while (true) {
+            ++$attempt;
+            $this->rateLimiter->acquire();
+            $response = $this->httpClient->request($method, $url, $options);
+            $status = $response->getStatusCode();
+
+            if (429 !== $status) {
+                return $response;
+            }
+
+            if ($attempt >= $maxAttempts) {
+                return $response;
+            }
+
+            $headers = $response->getHeaders(false);
+            $retryAfter = isset($headers['retry-after'][0]) ? (float) $headers['retry-after'][0] : 0.0;
+            // Scryfall often omits Retry-After on burst limits — back off hard.
+            $sleepSeconds = max($retryAfter, min(60.0, 1.5 ** $attempt));
+            usleep((int) ceil($sleepSeconds * 1_000_000));
         }
-
-        $headers = $response->getHeaders(false);
-        $retryAfter = isset($headers['retry-after'][0]) ? (float) $headers['retry-after'][0] : 1.0;
-        usleep(max(1, (int) ceil($retryAfter * 1_000_000)));
-
-        $this->rateLimiter->acquire();
-
-        return $this->httpClient->request($method, $url, $options);
     }
 }

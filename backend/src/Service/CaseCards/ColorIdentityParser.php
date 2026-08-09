@@ -121,6 +121,54 @@ final class ColorIdentityParser
         };
     }
 
+    /**
+     * Commander deckbuilding rule: every color in the card's identity must
+     * appear in the commander's identity. Colorless cards (empty identity)
+     * are always legal.
+     *
+     * @param list<string>|null $commanderIdentity
+     * @param list<string>|null $cardIdentity
+     */
+    public function isSubsetOf(?array $commanderIdentity, ?array $cardIdentity): bool
+    {
+        $commander = array_values(array_intersect(
+            str_split(self::WUBRG),
+            array_map('strval', $commanderIdentity ?? []),
+        ));
+        $card = array_values(array_intersect(
+            str_split(self::WUBRG),
+            array_map('strval', $cardIdentity ?? []),
+        ));
+
+        if ([] === $card) {
+            return true;
+        }
+
+        foreach ($card as $letter) {
+            if (!in_array($letter, $commander, true)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Canonical WUBRG-ordered identity string for a color-identity array
+     * (empty → "C").
+     *
+     * @param list<string>|null $colorIdentity
+     */
+    public function identityCode(?array $colorIdentity): string
+    {
+        $letters = array_values(array_intersect(
+            str_split(self::WUBRG),
+            array_map('strval', $colorIdentity ?? []),
+        ));
+
+        return [] === $letters ? 'C' : $this->canonicalize($letters);
+    }
+
     /** True when the code is one of the canonical values this parser can emit. */
     public function isCanonical(string $code): bool
     {

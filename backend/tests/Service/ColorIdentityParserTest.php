@@ -114,4 +114,15 @@ final class ColorIdentityParserTest extends TestCase
         self::assertFalse($this->parser->isCanonical('UW')); // wrong order
         self::assertFalse($this->parser->isCanonical('X'));
     }
+
+    public function testCommanderColorIdentitySubset(): void
+    {
+        self::assertTrue($this->parser->isSubsetOf(['W', 'U', 'B', 'G'], ['U']));
+        self::assertTrue($this->parser->isSubsetOf(['W', 'U', 'B', 'G'], []));
+        self::assertTrue($this->parser->isSubsetOf(['W', 'U', 'B', 'G'], null));
+        self::assertFalse($this->parser->isSubsetOf(['W', 'U', 'B', 'G'], ['R']));
+        self::assertFalse($this->parser->isSubsetOf(['R'], ['R', 'G']));
+        self::assertSame('WUBG', $this->parser->identityCode(['G', 'W', 'B', 'U']));
+        self::assertSame('C', $this->parser->identityCode([]));
+    }
 }

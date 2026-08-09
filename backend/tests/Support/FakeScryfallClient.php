@@ -41,4 +41,16 @@ final class FakeScryfallClient extends ScryfallClient
     {
         return ['inserted' => 0, 'updated' => 0, 'total' => 0];
     }
+
+    /**
+     * @var list<list<array<string, mixed>>> pages of raw Scryfall card payloads
+     */
+    public array $searchPages = [];
+
+    public function iterateSearchPages(string $query, string $unique = 'cards'): \Generator
+    {
+        foreach ($this->searchPages as $page) {
+            yield $page;
+        }
+    }
 }

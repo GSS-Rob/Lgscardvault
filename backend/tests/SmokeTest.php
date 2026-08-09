@@ -35,5 +35,7 @@ final class SmokeTest extends KernelTestCase
         yield 'inventory writer' => [\App\Service\Inventory\StoreInventoryWriter::class];
         yield 'import handler' => [\App\MessageHandler\ProcessCsvImportMessageHandler::class];
         yield 'sync handler' => [\App\MessageHandler\SyncScryfallCatalogMessageHandler::class];
+        yield 'commander sync handler' => [\App\MessageHandler\SyncCommanderCatalogMessageHandler::class];
+        yield 'commander synchronizer' => [\App\Service\Recommend\CommanderCatalogSynchronizer::class];
     }
 }

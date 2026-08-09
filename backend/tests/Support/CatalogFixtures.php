@@ -71,8 +71,13 @@ final class CatalogFixtures
         $card->setFinishes($data['finishes'] ?? null);
         $card->setPrices($data['prices'] ?? null);
         $card->setTypeLine($data['type_line'] ?? null);
+        $card->setOracleText($data['oracle_text'] ?? null);
+        $card->setManaCost($data['mana_cost'] ?? null);
+        $card->setCmc(isset($data['cmc']) ? (float) $data['cmc'] : null);
         $card->setColors($data['colors'] ?? null);
         $card->setColorIdentity($data['color_identity'] ?? null);
+        $card->setKeywords($data['keywords'] ?? null);
+        $card->setLegalities($data['legalities'] ?? null);
         $card->setScryfallData($data);
         $this->em->persist($card);
         $this->em->flush();

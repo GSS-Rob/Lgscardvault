@@ -40,6 +40,67 @@ class CardRepository extends ServiceEntityRepository
     }
 
     /**
+     * Legendary creatures suitable as commanders. Dedupes by oracle id so
+     * multiple printings of the same commander collapse to one result.
+     *
+     * @return list<Card>
+     */
+    public function searchCommanders(string $query, int $limit = 20): array
+    {
+        $limit = max(1, min(40, $limit));
+        $qb = $this->magicScoped()
+            ->andWhere('LOWER(c.typeLine) LIKE :legendary')
+            ->andWhere('LOWER(c.typeLine) LIKE :creature')
+            ->setParameter('legendary', '%legendary%')
+            ->setParameter('creature', '%creature%')
+            ->orderBy('c.name', 'ASC')
+            ->setMaxResults($limit * 3);
+
+        $q = strtolower(trim($query));
+        if ('' !== $q) {
+            $qb->andWhere('LOWER(c.name) LIKE :query')
+                ->setParameter('query', '%'.$q.'%');
+        }
+
+        /** @var list<Card> $rows */
+        $rows = $qb->getQuery()->getResult();
+        $seen = [];
+        $out = [];
+        foreach ($rows as $card) {
+            $oracle = (string) $card->getOracleId();
+            if (isset($seen[$oracle])) {
+                continue;
+            }
+            $seen[$oracle] = true;
+            $out[] = $card;
+            if (count($out) >= $limit) {
+                break;
+            }
+        }
+
+        return $out;
+    }
+
+    public function findOneMagicById(string $id): ?Card
+    {
+        try {
+            $uuid = \Symfony\Component\Uid\Uuid::fromString($id);
+        } catch (\InvalidArgumentException) {
+            return null;
+        }
+
+        $card = $this->find($uuid);
+        if (!$card instanceof Card) {
+            return null;
+        }
+
+        // Reject non-Magic printings even if the UUID happens to collide.
+        $code = $card->resolvedGameCode();
+
+        return Game::CODE_MTG === $code ? $card : null;
+    }
+
+    /**
      * Name search within one game. Non-Magic catalogs are local-only
      * (TCGCSV), so this is the whole search for them — there is no remote
      * leg to fall back to.
