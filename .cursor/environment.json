@@ -1,0 +1,8 @@
+{
+  "name": "LGS Card Vault",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": ".."
+  },
+  "install": "composer install --working-dir=backend --no-interaction --no-progress\nnpm install --prefix frontend --no-fund --no-audit"
+}

@@ -8,12 +8,26 @@ This is a multi-tenant TCG store marketplace: a **Symfony 8 / PHP 8.4** backend
 list, and standard lint/test/build commands; only the non-obvious,
 cloud-environment-specific caveats are captured here.
 
-### What the startup update script already does
+### Environment Builds (`.cursor/environment.json`)
 
-Dependencies are refreshed automatically on VM startup (`composer install` for
-`backend/`, `npm install` for `frontend/`). You do **not** need to reinstall
-them. PHP 8.4 (with `sodium`, `pdo_pgsql`, `intl`, `mbstring`, `gd`, etc.),
-Composer, and PostgreSQL 16 are baked into the VM snapshot.
+This repo uses **Cursor Cloud Builds**. System packages (PHP 8.4 + extensions,
+Composer, Node 22, PostgreSQL 16) come from `.cursor/Dockerfile`. Repo
+dependencies are baked during Build creation via the `install` script in
+`.cursor/environment.json`:
+
+```bash
+composer install --working-dir=backend --no-interaction --no-progress
+npm install --prefix frontend --no-fund --no-audit
+```
+
+After changing `install` or the Dockerfile, trigger a new Build on the
+[Cloud Agents → Builds](https://cursor.com/dashboard/cloud-agents#environments)
+tab and **activate** the successful build. Agents boot from the active Build —
+you do not reinstall on every run unless the Build is stale.
+
+**Latest validated build:** `bld-20260818-f2a2e4a6-7aee-4e48-8f24-96f7cf5a5b40`
+(environment `f7539bed-9077-11f1-ba66-0e7d0216e441`) — re-build after merging
+`.cursor/Dockerfile` if `composer` was missing in an earlier draft.
 
 ### Postgres is NOT started automatically — start it first
 
