@@ -25,9 +25,11 @@ After changing `install` or the Dockerfile, trigger a new Build on the
 tab and **activate** the successful build. Agents boot from the active Build —
 you do not reinstall on every run unless the Build is stale.
 
-**Latest validated build:** `bld-20260818-f2a2e4a6-7aee-4e48-8f24-96f7cf5a5b40`
-(environment `f7539bed-9077-11f1-ba66-0e7d0216e441`) — re-build after merging
-`.cursor/Dockerfile` if `composer` was missing in an earlier draft.
+**Latest validated build (promotable — activate on Builds tab):**
+`bld-20260818-670d2ed6-8375-4918-9c3b-7d58966e3606`
+
+Environment: `f7539bed-9077-11f1-ba66-0e7d0216e441` · branch `master` · includes
+`.cursor/Dockerfile` + install script above.
 
 ### Postgres is NOT started automatically — start it first
 
